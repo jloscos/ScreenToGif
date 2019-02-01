@@ -23,9 +23,11 @@ namespace ScreenToGif.Webcam.DirectShow
             IntPtr ptrXx;
             hr = Marshal.QueryInterface(ptrIf, ref iu, out ptrXx);
 
-            var ooo = System.Runtime.Remoting.Services.EnterpriseServicesHelper.WrapIUnknownWithComObject(ptrIf);
-            var ct = Marshal.Release(ptrIf);
-            return ooo;
+            throw new PlatformNotSupportedException("System.Runtime.Remoting.Services.EnterpriseServicesHelper");
+
+            //var ooo = System.Runtime.Remoting.Services.EnterpriseServicesHelper.WrapIUnknownWithComObject(ptrIf);
+            //var ct = Marshal.Release(ptrIf);
+            //return ooo;
         }
 
         [DllImport("ole32.dll")]

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading.Tasks;
 using ScreenToGif.Webcam.DirectShow;
@@ -33,8 +34,8 @@ namespace ScreenToGif.Webcam.DirectX
             int hr;
             object comObj = null;
             ICreateDevEnum enumDev = null;
-            UCOMIEnumMoniker enumMon = null;
-            var mon = new UCOMIMoniker[1];
+            IEnumMoniker enumMon = null;
+            var mon = new IMoniker[1];
 
             try
             {
@@ -58,7 +59,9 @@ namespace ScreenToGif.Webcam.DirectX
                 do
                 {
                     // Next filter
-                    hr = enumMon.Next(1, mon, out f);
+                    IntPtr p = IntPtr.Zero;
+                    hr = enumMon.Next(1, mon, p);
+                    f = Marshal.ReadInt32(p);
 
                     if ((hr != 0) || (mon[0] == null))
                         break;

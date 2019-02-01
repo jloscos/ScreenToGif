@@ -69,10 +69,6 @@ namespace ScreenToGif.Windows
 
         #region Async Load
 
-        public delegate List<string> Load();
-
-        private Load _loadDel;
-
         /// <summary>
         /// Loads the list of video devices.
         /// </summary>
@@ -89,10 +85,8 @@ namespace ScreenToGif.Windows
             return devicesList;
         }
 
-        private void LoadCallBack(IAsyncResult r)
+        private void LoadCallBack(List<string> result)
         {
-            var result = _loadDel.EndInvoke(r);
-
             #region If no devices detected
 
             if (result.Count == 0)
@@ -191,8 +185,8 @@ namespace ScreenToGif.Windows
 
             #endregion
 
-            _loadDel = LoadVideoDevices;
-            _loadDel.BeginInvoke(LoadCallBack, null);
+            var result = LoadVideoDevices();
+            LoadCallBack(result);
         }
 
         #endregion
@@ -300,19 +294,12 @@ namespace ScreenToGif.Windows
         /// </summary>
         /// <param name="filename">The final filename of the Bitmap.</param>
         /// <param name="bitmap">The Bitmap to save in the disk.</param>
-        public delegate void AddFrame(string filename, Bitmap bitmap);
-
-        private AddFrame _addDel;
 
         private void AddFrames(string filename, Bitmap bitmap)
         {
             bitmap.Save(filename);
             bitmap.Dispose();
         }
-
-        public delegate void AddRenderFrame(string filename, RenderTargetBitmap bitmap);
-
-        private AddRenderFrame _addRenderDel;
 
         private void AddRenderFrames(string filename, RenderTargetBitmap bitmap)
         {
@@ -323,20 +310,10 @@ namespace ScreenToGif.Windows
                 bitmapEncoder.Save(filestream);
         }
 
-        private void CallBack(IAsyncResult r)
-        {
-            //if (!this.IsLoaded) return;
-
-            _addDel.EndInvoke(r);
-        }
-
         #endregion
 
         #region Discard Async
 
-        private delegate void DiscardFrames();
-
-        private DiscardFrames _discardFramesDel;
 
         private void Discard()
         {
@@ -366,10 +343,8 @@ namespace ScreenToGif.Windows
             Project.Frames.Clear();
         }
 
-        private void DiscardCallback(IAsyncResult ar)
+        private void DiscardCallback()
         {
-            _discardFramesDel.EndInvoke(ar);
-
             Dispatcher.Invoke(() =>
             {
                 //Enables the controls that are disabled while recording;
@@ -417,7 +392,7 @@ namespace ScreenToGif.Windows
             var bt = Native.Capture(new System.Windows.Size((int)Math.Round(WebcamControl.ActualWidth * _scale, MidpointRounding.AwayFromZero),
                 (int)Math.Round(WebcamControl.ActualHeight * _scale, MidpointRounding.AwayFromZero)), lefttop.X, lefttop.Y);
 
-            _addDel.BeginInvoke(fileName, new Bitmap(bt), null, null); //CallBack
+            AddFrames(fileName, new Bitmap(bt));
             //_addDel.BeginInvoke(fileName, new Bitmap(WebcamControl.Capture.GetFrame()), CallBack, null);
             //_addRenderDel.BeginInvoke(fileName, WebcamControl.GetRender(this.Dpi(), new System.Windows.Size()), CallBack, null);
 
@@ -460,8 +435,6 @@ namespace ScreenToGif.Windows
                 FpsNumericUpDown.IsEnabled = false;
                 Topmost = true;
 
-                _addDel = AddFrames;
-                _addRenderDel = AddRenderFrames;
                 //WebcamControl.Capture.GetFrame();
 
                 #region Start - Normal or Snap
@@ -537,8 +510,8 @@ namespace ScreenToGif.Windows
             Cursor = Cursors.AppStarting;
             LowerGrid.IsEnabled = false;
 
-            _discardFramesDel = Discard;
-            _discardFramesDel.BeginInvoke(DiscardCallback, null);
+            Discard();
+            DiscardCallback();
         }
 
         private void Stop_CanExecute(object sender, CanExecuteRoutedEventArgs e)
@@ -613,8 +586,8 @@ namespace ScreenToGif.Windows
             VideoDevicesComboBox.ItemsSource = null;
 
             //Check again for video devices.
-            _loadDel = LoadVideoDevices;
-            _loadDel.BeginInvoke(LoadCallBack, null);
+            var result = LoadVideoDevices();
+            LoadCallBack(result);
         }
 
         #endregion

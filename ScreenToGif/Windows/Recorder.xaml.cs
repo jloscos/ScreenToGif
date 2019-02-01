@@ -376,9 +376,8 @@ namespace ScreenToGif.Windows
             }
         }
 
-        private void DiscardCallback(IAsyncResult ar)
+        private void DiscardCallback()
         {
-            _discardFramesDel.EndInvoke(ar);
 
             Dispatcher.Invoke(() =>
             {
@@ -455,8 +454,8 @@ namespace ScreenToGif.Windows
             OutterGrid.IsEnabled = false;
             Cursor = Cursors.AppStarting;
 
-            _discardFramesDel = Discard;
-            _discardFramesDel.BeginInvoke(DiscardCallback, null);
+            Discard();
+            DiscardCallback();
         }
 
         private void EnableSnapshot_Executed(object sender, ExecutedRoutedEventArgs e)

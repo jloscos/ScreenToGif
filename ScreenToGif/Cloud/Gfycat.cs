@@ -4,7 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
+using Newtonsoft.Json;
 using ScreenToGif.Util;
 
 namespace ScreenToGif.Cloud
@@ -27,9 +27,8 @@ namespace ScreenToGif.Cloud
                     var result = await res.Content.ReadAsStringAsync();
                     //{"isOk":true,"gfyname":"ThreeWordCode","secret":"15alphanumerics","uploadType":"filedrop.gfycat.com"}
 
-                    var ser = new JavaScriptSerializer();
-
-                    if (!(ser.DeserializeObject(result) is Dictionary<string, object> thing))
+                    var thing = JsonConvert.DeserializeObject<Dictionary<string, object>>(result);
+                    if (thing == null)
                         throw new Exception("It was not possible to get the gfycat name: " + res);
 
                     var name = thing["gfyname"] as string;

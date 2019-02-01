@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Management;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
@@ -69,21 +68,21 @@ namespace ScreenToGif
             #region Net Framework HotFixes
 
             //Only runs on Windows 7 SP1.
-            if (Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor == 1)
-            {
-                Task.Factory.StartNew(() =>
-                {
-                    try
-                    {
-                        var search = new ManagementObjectSearcher("SELECT HotFixID FROM Win32_QuickFixEngineering WHERE HotFixID = 'KB4055002'").Get();
-                        Global.IsHotFix4055002Installed = search.Count > 0;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogWriter.Log(ex, "Error while trying to know if a hot fix was installed.");
-                    }
-                });
-            }
+            //if (Environment.OSVersion.Version.Major == 6 && Environment.OSVersion.Version.Minor == 1)
+            //{
+            //    Task.Factory.StartNew(() =>
+            //    {
+            //        try
+            //        {
+            //            var search = new ManagementObjectSearcher("SELECT HotFixID FROM Win32_QuickFixEngineering WHERE HotFixID = 'KB4055002'").Get();
+            //            Global.IsHotFix4055002Installed = search.Count > 0;
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            LogWriter.Log(ex, "Error while trying to know if a hot fix was installed.");
+            //        }
+            //    });
+            //}
 
             #endregion
 

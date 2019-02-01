@@ -243,8 +243,9 @@ namespace ScreenToGif.Windows
 
                 ActionStack.Project = Project;
 
-                _loadFramesDel = Load;
-                _loadFramesDel.BeginInvoke(LoadCallback, null);
+
+                Load().ContinueWith(t => LoadCallback(t.Result));
+                
                 return;
             }
 
@@ -279,8 +280,8 @@ namespace ScreenToGif.Windows
 
                 #endregion
 
-                _importFramesDel = ImportFrom;
-                _importFramesDel.BeginInvoke(Argument.FileNames, ImportFromCallback, null);
+                ImportFrom(Argument.FileNames).ContinueWith(t => ImportFromCallback(t.Result));
+                
                 return;
             }
 
@@ -838,8 +839,7 @@ namespace ScreenToGif.Windows
 
             if (result.HasValue && result.Value)
             {
-                _importFramesDel = InsertImportFrom;
-                _importFramesDel.BeginInvoke(ofd.FileNames.ToList(), InsertImportFromCallback, null);
+                InsertImportFrom(ofd.FileNames.ToList()).ContinueWith(t => InsertImportFromCallback(t.Result));
             }
         }
 
@@ -1372,8 +1372,8 @@ namespace ScreenToGif.Windows
                         }
                         break;
                     case Export.Project:
-                        _saveProjectDel = SaveProjectAsync;
-                        _saveProjectDel.BeginInvoke(filename, saveToClipboard, SaveProjectCallback, null);
+                        SaveProjectAsync(filename, saveToClipboard);
+                        SaveProjectCallback();
                         break;
                     case Export.Photoshop:
                         var size2 = Project.Frames[0].Path.SizeOf();
@@ -1390,8 +1390,8 @@ namespace ScreenToGif.Windows
                 //Save, using the encoder.
                 if (UserSettings.All.SaveType != Export.Images && UserSettings.All.SaveType != Export.Project)
                 {
-                    _saveDel = SaveAsync;
-                    _saveDel.BeginInvoke(Project.Frames, param, this.Scale(), projectToo, UserSettings.All.SaveType == Export.Gif && UserSettings.All.GifEncoder == GifEncoderType.Gifski, SaveCallback, null);
+                    SaveAsync(Project.Frames, param, this.Scale(), projectToo, UserSettings.All.SaveType == Export.Gif && UserSettings.All.GifEncoder == GifEncoderType.Gifski);
+                    SaveCallback();
                 }
             }
             catch (Exception ex)
@@ -1447,9 +1447,7 @@ namespace ScreenToGif.Windows
                 ClosePanel();
 
                 //DiscardProject_Executed(null, null);
-
-                _importFramesDel = ImportFrom;
-                _importFramesDel.BeginInvoke(ofd.FileNames.ToList(), ImportFromCallback, null);
+                ImportFrom(ofd.FileNames.ToList()).ContinueWith(t => ImportFromCallback(t.Result));
             }
         }
 
@@ -2145,10 +2143,8 @@ namespace ScreenToGif.Windows
         private void ApplyRemoveDuplicatesCountButton_Click(object sender, RoutedEventArgs e)
         {
             Cursor = Cursors.AppStarting;
-
-            _removeDuplicatesDel = RemoveDuplicatesAsync;
-            _removeDuplicatesDel.BeginInvoke(UserSettings.All.DuplicatesSimilarity, UserSettings.All.DuplicatesRemoval, UserSettings.All.DuplicatesDelay, RemoveDuplicatesCallback, null);
-
+            RemoveDuplicatesAsync(UserSettings.All.DuplicatesSimilarity, UserSettings.All.DuplicatesRemoval, UserSettings.All.DuplicatesDelay).ContinueWith(t => RemoveDuplicatesCallback(t.Result));
+            
             ClosePanel();
         }
 
@@ -2162,8 +2158,8 @@ namespace ScreenToGif.Windows
         {
             Cursor = Cursors.AppStarting;
 
-            _reduceFrameDel = ReduceFrameCount;
-            _reduceFrameDel.BeginInvoke(ReduceFactorIntegerUpDown.Value, ReduceCountIntegerUpDown.Value, ReduceFrameCountCallback, null);
+            ReduceFrameCount(ReduceFactorIntegerUpDown.Value, ReduceCountIntegerUpDown.Value);
+            ReduceFrameCountCallback();
 
             ClosePanel();
         }
@@ -3482,15 +3478,16 @@ namespace ScreenToGif.Windows
 
             #region Importing options
 
+            Task<bool> importTask;
             //If inserted into new recording or forced into new one.
             if (Project == null || !Project.Any || e.KeyStates == DragDropKeyStates.ControlKey || projectCount > 0)
-                _importFramesDel = ImportFrom;
+                importTask = ImportFrom(fileNames.ToList());
             else
-                _importFramesDel = InsertImportFrom;
+                importTask = InsertImportFrom(fileNames.ToList());
 
             #endregion
-
-            _importFramesDel.BeginInvoke(fileNames.ToList(), ImportFromCallback, null);
+            importTask.ContinueWith(t => ImportFromCallback(t.Result));
+            
         }
 
         private void CancelLoadingButton_Click(object sender, RoutedEventArgs e)
@@ -3517,10 +3514,6 @@ namespace ScreenToGif.Windows
         #region Load
 
         #region Async Loading
-
-        private delegate bool LoadFrames();
-
-        private LoadFrames _loadFramesDel;
 
         /// <summary>
         /// Loads the new frames and clears the old ones.
@@ -3554,8 +3547,8 @@ namespace ScreenToGif.Windows
                 if (!UserSettings.All.NotifyProjectDiscard || Dialog.Ask(LocalizationHelper.Get("Editor.DiscardProject.Title"), LocalizationHelper.Get("Editor.DiscardPreviousProject.Instruction"),
                         LocalizationHelper.Get("Editor.DiscardPreviousProject.Message"), false))
                 {
-                    _discardFramesDel = Discard;
-                    _discardFramesDel.BeginInvoke(Project, DiscardAndLoadCallback, null);
+                    Discard(Project);
+                    DiscardAndLoadCallback();
 
                     Project = newProject;
 
@@ -3584,11 +3577,10 @@ namespace ScreenToGif.Windows
                 ActionStack.Project = Project;
             }
 
-            _loadFramesDel = Load;
-            _loadFramesDel.BeginInvoke(LoadCallback, null);
+            Load().ContinueWith(t => LoadCallback(t.Result));
         }
 
-        private bool Load()
+        private async Task<bool> Load()
         {
             try
             {
@@ -3623,7 +3615,7 @@ namespace ScreenToGif.Windows
 
                 if (Project.Frames.Count == 0)
                 {
-                    Dispatcher.InvokeAsync(() =>
+                    await Dispatcher.InvokeAsync(() =>
                     {
                         Dialog.Ok(LocalizationHelper.Get("Editor.LoadingFrames"), LocalizationHelper.Get("Editor.LoadingFrames.ProjectCorrupted.Instruction"),
                             LocalizationHelper.Get("Editor.LoadingFrames.ProjectCorrupted.Message"));
@@ -3756,7 +3748,7 @@ namespace ScreenToGif.Windows
 
                 if (corruptedList.Any())
                 {
-                    Dispatcher.InvokeAsync(() =>
+                    await Dispatcher.InvokeAsync(() =>
                     {
                         Dialog.Ok(LocalizationHelper.Get("Editor.LoadingFrames"), LocalizationHelper.Get("Editor.LoadingFrames.FramesCorrupted.Instruction"),
                             LocalizationHelper.Get("Editor.LoadingFrames.FramesCorrupted.Message"));
@@ -3775,10 +3767,8 @@ namespace ScreenToGif.Windows
             }
         }
 
-        private void LoadCallback(IAsyncResult ar)
+        private void LoadCallback(bool result)
         {
-            var result = _loadFramesDel.EndInvoke(ar);
-
             Dispatcher.Invoke(delegate
             {
                 Cursor = Cursors.Arrow;
@@ -3792,8 +3782,9 @@ namespace ScreenToGif.Windows
                 {
                     CancelLoadingButton.IsEnabled = true; //TODO: Is this right?
 
-                    _discardFramesDel = Discard;
-                    _discardFramesDel.BeginInvoke(Project, DiscardCallback, null);
+                    Discard(Project);
+                    DiscardCallback();
+
                     return;
                 }
 
@@ -3957,9 +3948,6 @@ namespace ScreenToGif.Windows
 
         #region Async Import
 
-        private delegate bool ImportFrames(List<string> fileList);
-
-        private ImportFrames _importFramesDel;
 
         private List<FrameInfo> InsertInternal(string fileName, string pathTemp)
         {
@@ -4003,11 +3991,11 @@ namespace ScreenToGif.Windows
             return listFrames;
         }
 
-        private bool ImportFrom(List<string> fileList)
+        private async Task<bool> ImportFrom(List<string> fileList)
         {
             #region Disable UI
 
-            Dispatcher.Invoke(() =>
+            await Dispatcher.InvokeAsync(() =>
             {
                 Cursor = Cursors.AppStarting;
                 IsLoading = true;
@@ -4033,7 +4021,7 @@ namespace ScreenToGif.Windows
                 if (Dispatcher.HasShutdownStarted)
                     return false;
 
-                Dispatcher.Invoke(() =>
+                await Dispatcher.InvokeAsync(() =>
                 {
                     Cursor = Cursors.Arrow;
                     IsLoading = false;
@@ -4050,16 +4038,14 @@ namespace ScreenToGif.Windows
                 return false;
             }
 
-            Dispatcher.Invoke(() => LoadProject(project));
+            await Dispatcher.InvokeAsync(() => LoadProject(project));
 
             return true;
         }
 
-        private void ImportFromCallback(IAsyncResult ar)
+        private async Task ImportFromCallback(bool result)
         {
-            _importFramesDel.EndInvoke(ar);
-
-            Dispatcher.Invoke(delegate
+            await Dispatcher.InvokeAsync(delegate
             {
                 ClosePanel(removeEvent: true);
 
@@ -4069,11 +4055,11 @@ namespace ScreenToGif.Windows
             GC.Collect();
         }
 
-        private bool InsertImportFrom(List<string> fileList)
+        private async Task<bool> InsertImportFrom(List<string> fileList)
         {
             #region Disable UI
 
-            Dispatcher.Invoke(() =>
+            await Dispatcher.InvokeAsync(() =>
             {
                 Cursor = Cursors.AppStarting;
                 IsLoading = true;
@@ -4102,7 +4088,7 @@ namespace ScreenToGif.Windows
                 return false;
             }
 
-            return Dispatcher.Invoke(() =>
+            return await Dispatcher.InvokeAsync(() =>
             {
                 #region Insert
 
@@ -4148,9 +4134,8 @@ namespace ScreenToGif.Windows
             });
         }
 
-        private void InsertImportFromCallback(IAsyncResult ar)
+        private void InsertImportFromCallback(bool result)
         {
-            var result = _importFramesDel.EndInvoke(ar);
 
             GC.Collect();
 
@@ -4572,8 +4557,7 @@ namespace ScreenToGif.Windows
                     LoadRecentGrid.Visibility = Visibility.Visible;
 
                     //Load list.
-                    _loadRecentDel = LoadRecentAsync;
-                    _loadRecentDel.BeginInvoke(LoadRecentCallback, null);
+                    LoadRecentAsync().ContinueWith((t) => LoadRecentCallback());
                     break;
                 case PanelType.Clipboard:
                     ClipboardGrid.Visibility = Visibility.Visible;
@@ -4852,8 +4836,8 @@ namespace ScreenToGif.Windows
 
             if (Project == null || !Project.Any) return;
 
-            _discardFramesDel = Discard;
-            _discardFramesDel.BeginInvoke(Project, DiscardCallback, null);
+            Discard();
+            DiscardCallback();
         }
 
         private void DeleteFrame(int index)
@@ -5350,15 +5334,11 @@ namespace ScreenToGif.Windows
 
         #region Async Load Recent
 
-        private delegate void LoadRecentDelegate();
-
-        private LoadRecentDelegate _loadRecentDel;
-
-        private void LoadRecentAsync()
+        private async Task LoadRecentAsync()
         {
             ShowProgress(DispatcherStringResource("Recent.EnumeratingProjects"), 100, true);
 
-            Dispatcher.Invoke(() => IsLoading = true);
+            await Dispatcher.InvokeAsync(() => IsLoading = true);
 
             #region Enumerate recent projects
 
@@ -5366,13 +5346,13 @@ namespace ScreenToGif.Windows
 
             try
             {
-                Dispatcher.Invoke(() => RecentDataGrid.ItemsSource = null);
+                await Dispatcher.InvokeAsync(() => RecentDataGrid.ItemsSource = null);
 
                 var path = Path.Combine(UserSettings.All.TemporaryFolder, "ScreenToGif", "Recording");
 
                 if (!Directory.Exists(path))
                 {
-                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => RecentDataGrid.ItemsSource = null));
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => RecentDataGrid.ItemsSource = null));
                     return;
                 }
 
@@ -5401,7 +5381,7 @@ namespace ScreenToGif.Windows
                 }
 
                 //Waits the animation to complete before filling the grid.
-                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                await Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
                 {
                     RecentDataGrid.ItemsSource = list;
 
@@ -5422,9 +5402,8 @@ namespace ScreenToGif.Windows
             #endregion
         }
 
-        private void LoadRecentCallback(IAsyncResult ar)
+        private void LoadRecentCallback()
         {
-            _loadRecentDel.EndInvoke(ar);
 
             Dispatcher.Invoke(() =>
             {
@@ -5443,9 +5422,6 @@ namespace ScreenToGif.Windows
 
         #region Async Save
 
-        private delegate bool SaveDelegate(List<FrameInfo> listFrames, Parameters param, double scale, bool projectToo, bool usePadding = false);
-
-        private SaveDelegate _saveDel;
 
         private bool SaveAsync(List<FrameInfo> listFrames, Parameters param, double scale, bool projectToo, bool usePadding = false)
         {
@@ -5469,8 +5445,8 @@ namespace ScreenToGif.Windows
             //Save as project too.
             if (projectToo)
             {
-                _saveProjectDel = SaveProjectAsync;
-                _saveProjectDel.BeginInvoke(Path.Combine(GetOutputFolder(), GetOutputFilename() + (UserSettings.All.LatestProjectExtension ?? ".stg")), false, SaveProjectCallback, null);
+                SaveProjectAsync(Path.Combine(GetOutputFolder(), GetOutputFilename() + (UserSettings.All.LatestProjectExtension ?? ".stg")), false);
+                SaveCallback();
             }
 
             return projectToo;
@@ -5478,11 +5454,9 @@ namespace ScreenToGif.Windows
             #endregion
         }
 
-        private void SaveCallback(IAsyncResult ar)
+        private void SaveCallback()
         {
-            var result = _saveDel.EndInvoke(ar);
 
-            if (!result)
                 Dispatcher.Invoke(() =>
                 {
                     Cursor = Cursors.Arrow;
@@ -5499,10 +5473,6 @@ namespace ScreenToGif.Windows
         #endregion
 
         #region Async Project
-
-        private delegate void SaveProjectDelegate(string fileName, bool copyToClipboard = false);
-
-        private SaveProjectDelegate _saveProjectDel;
 
         private void SaveProjectAsync(string fileName, bool copyToClipboard = false)
         {
@@ -5582,9 +5552,8 @@ namespace ScreenToGif.Windows
             #endregion
         }
 
-        private void SaveProjectCallback(IAsyncResult ar)
+        private void SaveProjectCallback()
         {
-            _saveProjectDel.EndInvoke(ar);
 
             Dispatcher.Invoke(() =>
             {
@@ -5602,10 +5571,6 @@ namespace ScreenToGif.Windows
         #endregion
 
         #region Async Discard
-
-        private delegate void DiscardFrames(ProjectInfo project);
-
-        private DiscardFrames _discardFramesDel;
 
         private void Discard(ProjectInfo project)
         {
@@ -5656,10 +5621,8 @@ namespace ScreenToGif.Windows
             HideProgress();
         }
 
-        private void DiscardCallback(IAsyncResult ar)
+        private void DiscardCallback()
         {
-            _discardFramesDel.EndInvoke(ar);
-
             Dispatcher.Invoke(() =>
             {
                 WelcomeGrid.BeginStoryboard(this.FindStoryboard("ShowWelcomeBorderStoryboard"), HandoffBehavior.Compose);
@@ -5680,10 +5643,8 @@ namespace ScreenToGif.Windows
             GC.Collect();
         }
 
-        private void DiscardAndLoadCallback(IAsyncResult ar)
+        private void DiscardAndLoadCallback()
         {
-            _discardFramesDel.EndInvoke(ar);
-
             Dispatcher.Invoke(() =>
             {
                 FilledList = false;
@@ -5691,8 +5652,7 @@ namespace ScreenToGif.Windows
                 FrameListView.SelectionChanged += FrameListView_SelectionChanged;
             });
 
-            _loadFramesDel = Load;
-            _loadFramesDel.BeginInvoke(LoadCallback, null);
+            Load().ContinueWith(t => LoadCallback(t.Result));
 
             GC.Collect();
         }
@@ -6319,10 +6279,6 @@ namespace ScreenToGif.Windows
 
         #region Async Reduce Frames
 
-        private delegate void ReduceFrame(int factor, int removeCount);
-
-        private ReduceFrame _reduceFrameDel;
-
         private void ReduceFrameCount(int factor, int removeCount)
         {
             var removeList = new List<int>();
@@ -6349,10 +6305,8 @@ namespace ScreenToGif.Windows
             }
         }
 
-        private void ReduceFrameCountCallback(IAsyncResult ar)
+        private void ReduceFrameCountCallback()
         {
-            _reduceFrameDel.EndInvoke(ar);
-
             Dispatcher.Invoke(() =>
             {
                 for (var i = FrameListView.Items.Count - 1; i >= Project.Frames.Count; i--)
@@ -6371,11 +6325,7 @@ namespace ScreenToGif.Windows
 
         #region Async Remove Duplicates
 
-        private delegate int RemoveDuplicates(double similarity, DuplicatesRemovalType removal, DuplicatesDelayType delay);
-
-        private RemoveDuplicates _removeDuplicatesDel;
-
-        private int RemoveDuplicatesAsync(double similarity, DuplicatesRemovalType removal, DuplicatesDelayType delay)
+        private Task<int> RemoveDuplicatesAsync(double similarity, DuplicatesRemovalType removal, DuplicatesDelayType delay)
         {
             var removeList = new List<int>();
             var alterList = new List<int>();
@@ -6392,7 +6342,7 @@ namespace ScreenToGif.Windows
             if (removeList.Count == 0)
             {
                 //TODO: Nothing being removed. I need to warn the user.
-                return Project.Frames.Count;
+                return Task.FromResult(Project.Frames.Count);
             }
 
             if (delay != DuplicatesDelayType.DontAdjust)
@@ -6444,12 +6394,11 @@ namespace ScreenToGif.Windows
             }
 
             //Gets the minimum index being altered.
-            return alterList.Count == 0 && removeList.Count == 0 ? Project.Frames.Count : alterList.Count > 0 ? Math.Min(removeList.Min(), alterList.Min()) : removeList.Min();
+            return Task.FromResult(alterList.Count == 0 && removeList.Count == 0 ? Project.Frames.Count : alterList.Count > 0 ? Math.Min(removeList.Min(), alterList.Min()) : removeList.Min());
         }
 
-        private void RemoveDuplicatesCallback(IAsyncResult ar)
+        private void RemoveDuplicatesCallback(int index)
         {
-            var index = _removeDuplicatesDel.EndInvoke(ar);
 
             Dispatcher.Invoke(() =>
             {

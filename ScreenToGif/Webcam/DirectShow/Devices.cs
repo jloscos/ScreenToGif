@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace ScreenToGif.Webcam.DirectShow
 {
@@ -12,8 +13,8 @@ namespace ScreenToGif.Webcam.DirectShow
             devs = null;
             object comObj = null;
             ICreateDevEnum enumDev = null;
-            UCOMIEnumMoniker enumMon = null;
-            var mon = new UCOMIMoniker[1];
+            IEnumMoniker enumMon = null;
+            var mon = new IMoniker[1];
 
             try
             {
@@ -28,9 +29,11 @@ namespace ScreenToGif.Webcam.DirectShow
                     throw new NotSupportedException("No devices of the category");
 
                 int f, count = 0;
+                IntPtr p = IntPtr.Zero;
                 do
                 {
-                    hr = enumMon.Next(1, mon, out f);
+                    hr = enumMon.Next(1, mon, p);
+                    f = Marshal.ReadInt32(p);
                     if ((hr != 0) || (mon[0] == null))
                         break;
                     var dev = new DsDevice();
@@ -68,7 +71,7 @@ namespace ScreenToGif.Webcam.DirectShow
 
         }
 
-        private static string GetFriendlyName(UCOMIMoniker mon)
+        private static string GetFriendlyName(IMoniker mon)
         {
             object bagObj = null;
             IPropertyBag bag = null;
@@ -108,7 +111,7 @@ namespace ScreenToGif.Webcam.DirectShow
     public class DsDevice : IDisposable
     {
         public string Name;
-        public UCOMIMoniker Mon;
+        public IMoniker Mon;
 
         public void Dispose()
         {
@@ -125,7 +128,7 @@ namespace ScreenToGif.Webcam.DirectShow
         [PreserveSig]
         int CreateClassEnumerator(
             [In]                                            ref Guid pType,
-            [Out]                                       out UCOMIEnumMoniker ppEnumMoniker,
+            [Out]                                       out IEnumMoniker ppEnumMoniker,
             [In]                                            int dwFlags);
     }
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading.Tasks;
 using ScreenToGif.Webcam.DirectShow;
@@ -41,14 +42,14 @@ namespace ScreenToGif.Webcam.DirectX
         }
 
         /// <summary> Create a new filter from its moniker </summary>
-        internal Filter(UCOMIMoniker moniker)
+        internal Filter(IMoniker moniker)
         {
             Name = GetName(moniker);
             MonikerString = GetMonikerString(moniker);
         }
 
         /// <summary> Retrieve the a moniker's display name (i.e. it's unique string) </summary>
-        protected string GetMonikerString(UCOMIMoniker moniker)
+        protected string GetMonikerString(IMoniker moniker)
         {
             string s;
             moniker.GetDisplayName(null, null, out s);
@@ -56,7 +57,7 @@ namespace ScreenToGif.Webcam.DirectX
         }
 
         /// <summary> Retrieve the human-readable name of the filter </summary>
-        protected string GetName(UCOMIMoniker moniker)
+        protected string GetName(IMoniker moniker)
         {
             object bagObj = null;
             IPropertyBag bag = null;
@@ -93,8 +94,8 @@ namespace ScreenToGif.Webcam.DirectX
         /// <summary> Get a moniker's human-readable name based on a moniker string. </summary>
         protected string GetName(string monikerString)
         {
-            UCOMIMoniker parser = null;
-            UCOMIMoniker moniker = null;
+            IMoniker parser = null;
+            IMoniker moniker = null;
 
             try
             {
@@ -123,14 +124,14 @@ namespace ScreenToGif.Webcam.DirectX
         ///  This assumes there is at least one video compressor filter
         ///  installed on the system.
         /// </summary>
-        protected UCOMIMoniker GetAnyMoniker()
+        protected IMoniker GetAnyMoniker()
         {
             Guid category = Uuid.FilterCategory.VideoCompressorCategory;
             int hr;
             object comObj = null;
             ICreateDevEnum enumDev = null;
-            UCOMIEnumMoniker enumMon = null;
-            UCOMIMoniker[] mon = new UCOMIMoniker[1];
+            IEnumMoniker enumMon = null;
+            IMoniker[] mon = new IMoniker[1];
 
             try
             {
@@ -148,7 +149,10 @@ namespace ScreenToGif.Webcam.DirectX
 
                 // Get first filter
                 int f;
-                hr = enumMon.Next(1, mon, out f);
+                IntPtr p = IntPtr.Zero;
+                hr = enumMon.Next(1, mon, p);
+                f = Marshal.ReadInt32(p);
+
                 if ((hr != 0))
                     mon[0] = null;
 
